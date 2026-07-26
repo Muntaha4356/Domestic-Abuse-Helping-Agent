@@ -1,4 +1,19 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/mockData-C1GxrP5G.js
+//#region node_modules/.nitro/vite/services/ssr/assets/mockData-DBQxa0gP.js
+var __defProp = Object.defineProperty;
+var __exportAll = (all, no_symbols) => {
+	let target = {};
+	for (var name in all) __defProp(target, name, {
+		get: all[name],
+		enumerable: true
+	});
+	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
+	return target;
+};
+var mockData_exports = /* @__PURE__ */ __exportAll({
+	cannedReplies: () => cannedReplies,
+	initialMessages: () => initialMessages,
+	resources: () => resources
+});
 var resources = [
 	{
 		id: "crisis_line",
@@ -53,4 +68,4 @@ var cannedReplies = [
 	"You're doing something brave by reaching out. I'm here for as long as you need."
 ];
 //#endregion
-export { initialMessages as n, resources as r, cannedReplies as t };
+export { resources as i, initialMessages as n, mockData_exports as r, cannedReplies as t };

@@ -1,8 +1,14 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/__23tanstack-start-server-fn-resolver-B7MdlF-l.js
-var manifest = { "a321fe2194a921581fef2414e566f7a5282f648f08f25d41814b7f1c063e265f": {
-	functionName: "sendChatMessage_createServerFn_handler",
-	importer: () => import("./_ssr/sendChatMessage-DqXgy23E.mjs")
-} };
+//#region node_modules/.nitro/vite/services/ssr/assets/__23tanstack-start-server-fn-resolver-DBPFBC2Y.js
+var manifest = {
+	"3f65130c504e802836b3569f9453e2eeeffad12a49b10cc43e243d92d90b36ce": {
+		functionName: "sendVoiceMessage_createServerFn_handler",
+		importer: () => import("./_ssr/sendVoiceMessage-f7V9fmsF.mjs")
+	},
+	"a321fe2194a921581fef2414e566f7a5282f648f08f25d41814b7f1c063e265f": {
+		functionName: "sendChatMessage_createServerFn_handler",
+		importer: () => import("./_ssr/sendChatMessage-DuPuzAO8.mjs")
+	}
+};
 async function getServerFnById(id, access) {
 	const serverFnInfo = manifest[id];
 	if (!serverFnInfo) throw new Error("Server function info not found for " + id);

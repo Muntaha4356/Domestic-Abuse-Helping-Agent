@@ -1,13 +1,13 @@
 import { a as __toESM } from "../_runtime.mjs";
 import { n as AnimatePresence, t as motion } from "../_libs/framer-motion.mjs";
+import { i as resources, n as initialMessages } from "./mockData-DBQxa0gP.mjs";
 import { n as require_jsx_runtime, r as require_react } from "../_libs/react+tanstack__react-query.mjs";
 import { E as isRedirect, g as useRouter } from "../_libs/@tanstack/react-router+[...].mjs";
-import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-B7MdlF-l.mjs";
+import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-DBPFBC2Y.mjs";
 import { c as createServerFn, i as TSS_SERVER_FUNCTION } from "./createServerFn-CIHAFgYl.mjs";
-import { n as initialMessages, r as resources } from "./mockData-C1GxrP5G.mjs";
 import { i as stringType, n as enumType, r as objectType, t as arrayType } from "../_libs/zod.mjs";
-import { a as Settings, c as MessageCircle, d as Lock, f as Heart, g as ArrowLeft, h as Clock, i as Sun, l as MapPin, m as CloudRain, n as Wind, o as Send, p as Cloud, r as TriangleAlert, s as Phone, t as X, u as LogOut } from "../_libs/lucide-react.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-CfjqmNAw.js
+import { _ as CloudRain, a as Sun, b as ArrowLeft, c as Phone, d as MessageCircle, f as MapPin, g as Cloud, h as Heart, i as Trash2, l as Mic, m as Lock, n as Wind, o as Settings, p as LogOut, r as TriangleAlert, s as Send, t as X, u as MicOff, v as Clock, y as CircleAlert } from "../_libs/lucide-react.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-ByPAHV_c.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function useServerFn(serverFn) {
@@ -536,6 +536,243 @@ var sendChatInputSchema = objectType({
 	}))
 });
 var sendChatMessage = createServerFn({ method: "POST" }).validator((data) => sendChatInputSchema.parse(data)).handler(createSsrRpc("a321fe2194a921581fef2414e566f7a5282f648f08f25d41814b7f1c063e265f"));
+function AudioSupport({ onSendVoice, onSendTextDirectly, isTyping }) {
+	const [isRecording, setIsRecording] = (0, import_react.useState)(false);
+	const [volume, setVolume] = (0, import_react.useState)(0);
+	const [showSpikeAlert, setShowSpikeAlert] = (0, import_react.useState)(false);
+	const mediaRecorderRef = (0, import_react.useRef)(null);
+	const audioContextRef = (0, import_react.useRef)(null);
+	const analyserRef = (0, import_react.useRef)(null);
+	const streamRef = (0, import_react.useRef)(null);
+	const animationFrameRef = (0, import_react.useRef)(null);
+	const speechRecognitionRef = (0, import_react.useRef)(null);
+	const chunksRef = (0, import_react.useRef)([]);
+	const transcriptRef = (0, import_react.useRef)("");
+	const recordStartTimeRef = (0, import_react.useRef)(0);
+	(0, import_react.useEffect)(() => {
+		return () => {
+			cleanupAudio();
+		};
+	}, []);
+	const cleanupAudio = () => {
+		if (animationFrameRef.current) {
+			cancelAnimationFrame(animationFrameRef.current);
+			animationFrameRef.current = null;
+		}
+		if (streamRef.current) {
+			streamRef.current.getTracks().forEach((track) => track.stop());
+			streamRef.current = null;
+		}
+		if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+			audioContextRef.current.close();
+			audioContextRef.current = null;
+		}
+		if (speechRecognitionRef.current) {
+			try {
+				speechRecognitionRef.current.stop();
+			} catch (e) {}
+			speechRecognitionRef.current = null;
+		}
+		mediaRecorderRef.current = null;
+		analyserRef.current = null;
+	};
+	const startRecording = async () => {
+		try {
+			cleanupAudio();
+			chunksRef.current = [];
+			transcriptRef.current = "";
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			streamRef.current = stream;
+			recordStartTimeRef.current = Date.now();
+			const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+			audioContextRef.current = audioCtx;
+			const source = audioCtx.createMediaStreamSource(stream);
+			const analyser = audioCtx.createAnalyser();
+			analyser.fftSize = 256;
+			analyserRef.current = analyser;
+			source.connect(analyser);
+			monitorVolume();
+			const mediaRecorder = new MediaRecorder(stream);
+			mediaRecorderRef.current = mediaRecorder;
+			mediaRecorder.ondataavailable = (e) => {
+				if (e.data.size > 0) chunksRef.current.push(e.data);
+			};
+			mediaRecorder.onstop = async () => {
+				const audioBlob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType || "audio/webm" });
+				if (audioBlob.size > 0 && !showSpikeAlert) {
+					const reader = new FileReader();
+					reader.readAsDataURL(audioBlob);
+					reader.onloadend = async () => {
+						const base64String = reader.result.split(",")[1];
+						await onSendVoice(base64String, audioBlob.type, transcriptRef.current);
+					};
+				}
+			};
+			const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+			if (SpeechRecognitionClass) {
+				const recognition = new SpeechRecognitionClass();
+				recognition.continuous = true;
+				recognition.interimResults = false;
+				recognition.lang = "en-US";
+				recognition.onresult = (event) => {
+					let finalTranscript = "";
+					for (let i = event.resultIndex; i < event.results.length; ++i) if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+					if (finalTranscript) transcriptRef.current += (transcriptRef.current ? " " : "") + finalTranscript;
+				};
+				speechRecognitionRef.current = recognition;
+				recognition.start();
+			}
+			mediaRecorder.start();
+			setIsRecording(true);
+		} catch (err) {
+			console.error("Microphone access denied or audio initialization failed:", err);
+		}
+	};
+	const monitorVolume = () => {
+		if (!analyserRef.current) return;
+		const bufferLength = analyserRef.current.frequencyBinCount;
+		const dataArray = new Uint8Array(bufferLength);
+		const checkVolume = () => {
+			if (!analyserRef.current) return;
+			analyserRef.current.getByteTimeDomainData(dataArray);
+			let sum = 0;
+			for (let i = 0; i < bufferLength; i++) {
+				const val = (dataArray[i] - 128) / 128;
+				sum += val * val;
+			}
+			const rms = Math.sqrt(sum / bufferLength);
+			setVolume(rms);
+			const isSpike = rms > .4;
+			const hasTimePassed = Date.now() - recordStartTimeRef.current > 750;
+			if (isSpike && hasTimePassed) {
+				triggerSpikeAlert();
+				return;
+			}
+			animationFrameRef.current = requestAnimationFrame(checkVolume);
+		};
+		animationFrameRef.current = requestAnimationFrame(checkVolume);
+	};
+	const triggerSpikeAlert = () => {
+		cleanupAudio();
+		setIsRecording(false);
+		setVolume(0);
+		setShowSpikeAlert(true);
+	};
+	const stopRecording = () => {
+		if (mediaRecorderRef.current && isRecording) {
+			mediaRecorderRef.current.stop();
+			cleanupAudio();
+			setIsRecording(false);
+			setVolume(0);
+		}
+	};
+	const cancelRecording = () => {
+		cleanupAudio();
+		setIsRecording(false);
+		setVolume(0);
+		chunksRef.current = [];
+		transcriptRef.current = "";
+	};
+	const handleAlertResponse = async (needsHelp) => {
+		setShowSpikeAlert(false);
+		if (needsHelp) await onSendTextDirectly("I need help");
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "relative flex items-center gap-2",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AnimatePresence, { children: isRecording && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.button, {
+			type: "button",
+			initial: {
+				opacity: 0,
+				scale: .8
+			},
+			animate: {
+				opacity: 1,
+				scale: 1
+			},
+			exit: {
+				opacity: 0,
+				scale: .8
+			},
+			onClick: cancelRecording,
+			"aria-label": "Cancel recording",
+			className: "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-all hover:bg-muted/80",
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, { className: "h-4 w-4" })
+		}, "cancel-rec") }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+			type: "button",
+			disabled: isTyping,
+			onClick: isRecording ? stopRecording : startRecording,
+			"aria-label": isRecording ? "Stop and send voice message" : "Record voice message",
+			className: `relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isRecording ? "bg-destructive text-destructive-foreground hover:brightness-105" : "bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"}`,
+			children: [isRecording && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "absolute inset-0 rounded-full bg-destructive/30 pointer-events-none",
+				style: {
+					transform: `scale(${1 + volume * 1.5})`,
+					transition: "transform 75ms ease-out"
+				}
+			}), isRecording ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MicOff, { className: "h-4 w-4 z-10" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Mic, { className: "h-4 w-4" })]
+		})]
+	}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AnimatePresence, { children: showSpikeAlert && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.div, {
+		initial: { opacity: 0 },
+		animate: { opacity: 1 },
+		exit: { opacity: 0 },
+		className: "fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.div, {
+			initial: {
+				scale: .95,
+				y: 15
+			},
+			animate: {
+				scale: 1,
+				y: 0
+			},
+			exit: {
+				scale: .95,
+				y: 15
+			},
+			className: "w-full max-w-sm rounded-2xl border border-destructive/20 bg-card p-6 shadow-2xl backdrop-blur-md",
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-col items-center text-center gap-4",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "rounded-full bg-destructive/10 p-3 text-destructive",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleAlert, { className: "h-8 w-8 animate-bounce" })
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+						className: "text-lg font-semibold text-foreground",
+						children: "Are you okay?"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted-foreground",
+						children: "We detected a sudden loud noise. Do you need help or support resources?"
+					})] }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex w-full flex-col gap-2 mt-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							onClick: () => handleAlertResponse(true),
+							className: "w-full rounded-xl bg-destructive hover:bg-destructive/95 px-4 py-3 text-sm font-semibold text-destructive-foreground shadow-md transition-all active:scale-[0.98]",
+							children: "Yes, help me"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							onClick: () => handleAlertResponse(false),
+							className: "w-full rounded-xl bg-secondary hover:bg-secondary/90 px-4 py-2.5 text-sm font-medium text-secondary-foreground transition-all",
+							children: "No, I'm fine"
+						})]
+					})
+				]
+			})
+		})
+	}) })] });
+}
+var sendVoiceInputSchema = objectType({
+	base64Audio: stringType(),
+	mimeType: stringType(),
+	clientTranscript: stringType().optional(),
+	history: arrayType(objectType({
+		role: enumType(["user", "assistant"]),
+		content: stringType()
+	}))
+});
+var sendVoiceMessage = createServerFn({ method: "POST" }).validator((data) => sendVoiceInputSchema.parse(data)).handler(createSsrRpc("3f65130c504e802836b3569f9453e2eeeffad12a49b10cc43e243d92d90b36ce"));
 var findResource = (id) => resources.find((r) => r.id === id);
 function ChatWindow({ onLeave }) {
 	const [messages, setMessages] = (0, import_react.useState)(initialMessages);
@@ -544,12 +781,119 @@ function ChatWindow({ onLeave }) {
 	const [handoffResource, setHandoffResource] = (0, import_react.useState)(null);
 	const scrollRef = (0, import_react.useRef)(null);
 	const sendMessage = useServerFn(sendChatMessage);
+	const sendVoice = useServerFn(sendVoiceMessage);
 	(0, import_react.useEffect)(() => {
 		scrollRef.current?.scrollTo({
 			top: scrollRef.current.scrollHeight,
 			behavior: "smooth"
 		});
 	}, [messages, isTyping]);
+	const handleSendTextDirectly = async (text) => {
+		if (isTyping) return;
+		const userMsg = {
+			id: `u-${Date.now()}`,
+			role: "user",
+			kind: "text",
+			content: text
+		};
+		setMessages((m) => [...m, userMsg]);
+		setIsTyping(true);
+		const history = messages.filter((m) => m.kind === "text").map((m) => ({
+			role: m.role,
+			content: m.content
+		}));
+		try {
+			const result = await sendMessage({ data: {
+				message: text,
+				history
+			} });
+			const next = [{
+				id: `a-${Date.now()}`,
+				role: "assistant",
+				kind: "text",
+				content: result.reply
+			}];
+			if (result.resourceId) next.push({
+				id: `r-${Date.now()}`,
+				role: "assistant",
+				kind: "resource",
+				resourceId: result.resourceId
+			});
+			if (result.callLink) next.push({
+				id: `c-${Date.now()}`,
+				role: "assistant",
+				kind: "call_prompt",
+				callLink: result.callLink,
+				resourceName: result.callResourceName || "Monarch Services"
+			});
+			setMessages((m) => [...m, ...next]);
+		} catch {
+			setMessages((m) => [...m, {
+				id: `a-${Date.now()}`,
+				role: "assistant",
+				kind: "text",
+				content: "I'm having trouble connecting right now. Please try again in a moment, or use the crisis line above if you need immediate help."
+			}]);
+		} finally {
+			setIsTyping(false);
+		}
+	};
+	const handleSendVoice = async (base64Audio, mimeType, clientTranscript) => {
+		if (isTyping) return;
+		const userMsg = {
+			id: `u-${Date.now()}`,
+			role: "user",
+			kind: "text",
+			content: clientTranscript || "[Voice Message]"
+		};
+		setMessages((m) => [...m, userMsg]);
+		setIsTyping(true);
+		const history = messages.filter((m) => m.kind === "text").map((m) => ({
+			role: m.role,
+			content: m.content
+		}));
+		try {
+			const result = await sendVoice({ data: {
+				base64Audio,
+				mimeType,
+				clientTranscript,
+				history
+			} });
+			if (result.transcription) setMessages((m) => m.map((msg) => msg.id === userMsg.id ? {
+				...msg,
+				content: result.transcription
+			} : msg));
+			const next = [{
+				id: `a-${Date.now()}`,
+				role: "assistant",
+				kind: "text",
+				content: result.reply
+			}];
+			if (result.resourceId) next.push({
+				id: `r-${Date.now()}`,
+				role: "assistant",
+				kind: "resource",
+				resourceId: result.resourceId
+			});
+			if (result.callLink) next.push({
+				id: `c-${Date.now()}`,
+				role: "assistant",
+				kind: "call_prompt",
+				callLink: result.callLink,
+				resourceName: result.callResourceName || "Monarch Services"
+			});
+			setMessages((m) => [...m, ...next]);
+		} catch {
+			setMessages((m) => [...m, {
+				id: `a-${Date.now()}`,
+				role: "assistant",
+				kind: "text",
+				content: "Sorry, I had trouble processing your voice recording. Please try again or type instead."
+			}]);
+		} finally {
+			setIsTyping(false);
+		}
+	};
 	const handleSend = async (e) => {
 		e?.preventDefault();
 		const text = input.trim();
@@ -701,26 +1045,34 @@ function ChatWindow({ onLeave }) {
 				className: "border-t border-border/60 bg-background/80 px-3 py-3 backdrop-blur sm:px-6 sm:py-4",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "flex items-end gap-2 rounded-3xl border border-border bg-card px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/60",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
-						value: input,
-						onChange: (e) => setInput(e.target.value),
-						onKeyDown: (e) => {
-							if (e.key === "Enter" && !e.shiftKey) {
-								e.preventDefault();
-								handleSend();
-							}
-						},
-						rows: 1,
-						placeholder: "Share what's on your mind…",
-						"aria-label": "Message",
-						className: "max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						type: "submit",
-						disabled: !input.trim(),
-						"aria-label": "Send message",
-						className: "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Send, { className: "h-4 w-4" })
-					})]
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
+							value: input,
+							onChange: (e) => setInput(e.target.value),
+							onKeyDown: (e) => {
+								if (e.key === "Enter" && !e.shiftKey) {
+									e.preventDefault();
+									handleSend();
+								}
+							},
+							rows: 1,
+							placeholder: "Share what's on your mind…",
+							"aria-label": "Message",
+							className: "max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AudioSupport, {
+							onSendVoice: handleSendVoice,
+							onSendTextDirectly: handleSendTextDirectly,
+							isTyping
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "submit",
+							disabled: !input.trim(),
+							"aria-label": "Send message",
+							className: "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Send, { className: "h-4 w-4" })
+						})
+					]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "mt-2 text-center text-[11px] text-muted-foreground",
 					children: "This is a prototype. Not a substitute for emergency services — if you're in immediate danger, call 911."
