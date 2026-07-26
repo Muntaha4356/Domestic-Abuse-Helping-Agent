@@ -6,6 +6,8 @@ import { getGeminiClient } from "@/server/gemma/client";
 import {
   executeGetLocalResource,
   getLocalResourceDeclaration,
+  executeInitiateCall,
+  initiateCallDeclaration,
 } from "@/server/tools/getLocalResource";
 
 const MAX_TOOL_ROUNDS = 3;
@@ -39,6 +41,8 @@ export async function runChat(
   const contents: Content[] = [...toGeminiHistory(history), { role: "user", parts: [{ text: message }] }];
 
   let resourceId: string | undefined;
+  let callLink: string | undefined;
+  let callResourceName: string | undefined;
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
     const response = await client.models.generateContent({
@@ -46,7 +50,7 @@ export async function runChat(
       contents,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        tools: [{ functionDeclarations: [getLocalResourceDeclaration] }],
+        tools: [{ functionDeclarations: [getLocalResourceDeclaration, initiateCallDeclaration] }],
       },
     });
 
@@ -64,20 +68,31 @@ export async function runChat(
       if (!reply) {
         throw new Error("The model returned no text.");
       }
-      return { reply, resourceId };
+      return { reply, resourceId, callLink, callResourceName };
     }
 
     const functionResponseParts: Part[] = functionCalls.map((part) => {
       const call = part.functionCall!;
       const args = call.args ?? {};
-      const category = "category" in args ? args.category : undefined;
-      const result = executeGetLocalResource(category);
 
-      resourceId ??= extractResourceId(result);
+      let result: any;
+      if (call.name === "getLocalResource") {
+        const category = "category" in args ? args.category : undefined;
+        result = executeGetLocalResource(category);
+        resourceId ??= extractResourceId(result);
+      } else if (call.name === "initiateCall") {
+        const phone = "phone" in args ? String(args.phone) : "";
+        const resourceName = "resourceName" in args ? String(args.resourceName) : "";
+        result = executeInitiateCall(phone, resourceName);
+        callLink ??= result.callLink;
+        callResourceName ??= result.resourceName;
+      } else {
+        result = { error: `Unknown tool: ${call.name}` };
+      }
 
       return {
         functionResponse: {
-          name: call.name ?? "getLocalResource",
+          name: call.name,
           response: result,
         },
       };

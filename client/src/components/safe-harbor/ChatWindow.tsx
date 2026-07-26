@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Send, Lock, ArrowLeft } from "lucide-react";
+import { Send, Lock, ArrowLeft, Phone } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
@@ -68,6 +68,15 @@ export function ChatWindow({ onLeave }: Props) {
           role: "assistant",
           kind: "resource",
           resourceId: result.resourceId,
+        });
+      }
+      if (result.callLink) {
+        next.push({
+          id: `c-${Date.now()}`,
+          role: "assistant",
+          kind: "call_prompt",
+          callLink: result.callLink,
+          resourceName: result.callResourceName || "Monarch Services",
         });
       }
       setMessages((m) => [...m, ...next]);
@@ -145,6 +154,27 @@ export function ChatWindow({ onLeave }: Props) {
                     className="flex w-full justify-start"
                   >
                     <ResourceCard resource={r} onOfferHandoff={(res) => setHandoffResource(res)} />
+                  </motion.div>
+                );
+              }
+              if (m.kind === "call_prompt") {
+                return (
+                  <motion.div
+                    key={m.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex w-full justify-start"
+                  >
+                    <div className="flex flex-col gap-2 max-w-[85%]">
+                      <a
+                        href={m.callLink}
+                        id={`call-btn-${m.id}`}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-destructive px-5 py-3.5 text-sm font-semibold text-destructive-foreground shadow-lg hover:bg-destructive/90 transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                      >
+                        <Phone className="h-4 w-4 shrink-0 animate-pulse" />
+                        <span>Call {m.resourceName} Now</span>
+                      </a>
+                    </div>
                   </motion.div>
                 );
               }

@@ -3,7 +3,7 @@ import { t as cannedReplies } from "./mockData-C1GxrP5G.mjs";
 import { i as stringType, n as enumType, r as objectType, t as arrayType } from "../_libs/zod.mjs";
 import { n as Type, t as GoogleGenAI } from "../_libs/google__genai+p-retry+retry.mjs";
 import processModule from "node:process";
-//#region node_modules/.nitro/vite/services/ssr/assets/sendChatMessage-bfqQGSb4.js
+//#region node_modules/.nitro/vite/services/ssr/assets/sendChatMessage-DqXgy23E.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -13,7 +13,7 @@ var createServerRpc = (serverFnMeta, splitImportFn) => {
 	});
 };
 var GEMMA_MODEL_ID = "gemma-4-26b-a4b-it";
-var SYSTEM_INSTRUCTION = "You are a calm, trauma-informed support assistant for Santa Cruz. Never diagnose. Prioritize safety. Never assume urgency from silence. Use getLocalResource when someone needs a specific type of help, or when you detect the situation is severe, to retrieve and present the corresponding support resource. Never auto-suggest contacting emergency services (like 911) without the user's explicit request.";
+var SYSTEM_INSTRUCTION = "You are a calm, trauma-informed support assistant for Santa Cruz. Respond with warmth, and never judge or diagnose. Core Behavior Rules:\n1. Urgency Detection: Silently assess when the user's messages indicate a serious situation (active abuse, sexual assault, or immediate danger). Do NOT state or narrate this assessment back to the user.\n2. Resource Suggestion: When you detect a serious situation, immediately and proactively call the `getLocalResource` tool with the category 'crisis' (or other category if more appropriate) to fetch support details. Do not wait to be asked.\n3. Consent-Gated Agentic Calling: If the situation is serious, ask the user directly: \"Would you like me to help you call [Resource Name] right now?\" (substituting the correct resource name, e.g., 'Monarch Services'). ONLY call the `initiateCall` tool with the phone number and name of the resource if the user explicitly confirms \"yes\" in their immediate response.\n4. Emergency Services Guardrail: Never suggest or mention calling emergency services (like 911) unless the user brings it up first.\n5. Urgency Guardrail: Never assume urgency or danger just because the user goes silent, gives short answers, or stops replying.\n6. Prioritize User Preference: Always prioritize the user's stated preferences and comfort over your own risk assessment. Offer support resources, but never insist or act without explicit consent.";
 var client;
 function getGeminiClient() {
 	const apiKey = processModule.env.GEMINI_API_KEY;
@@ -95,6 +95,32 @@ function executeGetLocalResource(category) {
 	const { category: _category, ...resourceData } = resource;
 	return resourceData;
 }
+var initiateCallDeclaration = {
+	name: "initiateCall",
+	description: "Prepare a phone call link for the user to a specific support resource when they give consent to call. Returns a tel: link that the user must physically tap.",
+	parameters: {
+		type: Type.OBJECT,
+		properties: {
+			phone: {
+				type: Type.STRING,
+				description: "The phone number to dial, e.g., '1-888-900-4232'."
+			},
+			resourceName: {
+				type: Type.STRING,
+				description: "The name of the resource, e.g., 'Monarch Services'."
+			}
+		},
+		required: ["phone", "resourceName"]
+	}
+};
+function executeInitiateCall(phone, resourceName) {
+	const cleanPhone = phone.replace(/[^\d+]/g, "");
+	return {
+		callLink: phone.startsWith("tel:") ? phone : `tel:${phone.startsWith("+") ? "" : "+1"}${cleanPhone}`,
+		resourceName,
+		requiresUserTap: true
+	};
+}
 var MAX_TOOL_ROUNDS = 3;
 function toGeminiHistory(history) {
 	return history.map((item) => ({
@@ -118,13 +144,15 @@ async function runChat(message, history) {
 		parts: [{ text: message }]
 	}];
 	let resourceId;
+	let callLink;
+	let callResourceName;
 	for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
 		const modelContent = ((await client.models.generateContent({
 			model: GEMMA_MODEL_ID,
 			contents,
 			config: {
 				systemInstruction: SYSTEM_INSTRUCTION,
-				tools: [{ functionDeclarations: [getLocalResourceDeclaration] }]
+				tools: [{ functionDeclarations: [getLocalResourceDeclaration, initiateCallDeclaration] }]
 			}
 		})).candidates?.[0])?.content;
 		if (!modelContent?.parts?.length) throw new Error("The model returned an empty response.");
@@ -135,16 +163,25 @@ async function runChat(message, history) {
 			if (!reply) throw new Error("The model returned no text.");
 			return {
 				reply,
-				resourceId
+				resourceId,
+				callLink,
+				callResourceName
 			};
 		}
 		const functionResponseParts = functionCalls.map((part) => {
 			const call = part.functionCall;
 			const args = call.args ?? {};
-			const result = executeGetLocalResource("category" in args ? args.category : void 0);
-			resourceId ??= extractResourceId(result);
+			let result;
+			if (call.name === "getLocalResource") {
+				result = executeGetLocalResource("category" in args ? args.category : void 0);
+				resourceId ??= extractResourceId(result);
+			} else if (call.name === "initiateCall") {
+				result = executeInitiateCall("phone" in args ? String(args.phone) : "", "resourceName" in args ? String(args.resourceName) : "");
+				callLink ??= result.callLink;
+				callResourceName ??= result.resourceName;
+			} else result = { error: `Unknown tool: ${call.name}` };
 			return { functionResponse: {
-				name: call.name ?? "getLocalResource",
+				name: call.name,
 				response: result
 			} };
 		});
@@ -168,8 +205,33 @@ var sendChatMessage_createServerFn_handler = createServerRpc({
 	filename: "src/functions/sendChatMessage.ts"
 }, (opts) => sendChatMessage.__executeServer(opts));
 var sendChatMessage = createServerFn({ method: "POST" }).validator((data) => sendChatInputSchema.parse(data)).handler(sendChatMessage_createServerFn_handler, async ({ data }) => {
-	if (!processModule.env.GEMINI_API_KEY) {
-		console.warn("GEMINI_API_KEY is not configured on the server. Using mock replies.");
+	if (!processModule.env.GEMINI_API_KEY || processModule.env.GEMINI_API_KEY === "your_key_here") {
+		console.warn("GEMINI_API_KEY is not configured on the server. Using mock crisis/calling simulations.");
+		const msg = data.message.toLowerCase();
+		const lastAssistantMsg = data.history.length > 0 ? data.history[data.history.length - 1] : null;
+		const wasAskedToCall = lastAssistantMsg?.role === "assistant" && (lastAssistantMsg.content.includes("help you call") || lastAssistantMsg.content.includes("call Monarch Services"));
+		const userConfirmed = msg === "yes" || msg.includes("yes, please") || msg.includes("yes please") || msg.includes("sure") || msg.includes("call them") || msg.includes("please do");
+		if (wasAskedToCall && userConfirmed) return {
+			reply: "I've prepared the call for you. Since this is a browser environment, you will need to tap the button below to initiate it. Take your time, and only call when you are ready.",
+			callLink: "tel:+18889004232",
+			callResourceName: "Monarch Services"
+		};
+		if ([
+			"danger",
+			"hurt",
+			"abuse",
+			"scared",
+			"crisis",
+			"assault",
+			"hit",
+			"beating",
+			"pain",
+			"violence",
+			"threat"
+		].some((keyword) => msg.includes(keyword))) return {
+			reply: "I'm so sorry you're going through this, and I want to make sure you are safe. Would you like me to help you call Monarch Services right now?",
+			resourceId: "crisis_line"
+		};
 		return { reply: cannedReplies[Math.floor(Math.random() * cannedReplies.length)] };
 	}
 	return runChat(data.message, data.history);

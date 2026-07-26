@@ -2,12 +2,12 @@ import { a as __toESM } from "../_runtime.mjs";
 import { n as AnimatePresence, t as motion } from "../_libs/framer-motion.mjs";
 import { n as require_jsx_runtime, r as require_react } from "../_libs/react+tanstack__react-query.mjs";
 import { E as isRedirect, g as useRouter } from "../_libs/@tanstack/react-router+[...].mjs";
-import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-HIakL9pf.mjs";
+import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-B7MdlF-l.mjs";
 import { c as createServerFn, i as TSS_SERVER_FUNCTION } from "./createServerFn-CIHAFgYl.mjs";
 import { n as initialMessages, r as resources } from "./mockData-C1GxrP5G.mjs";
 import { i as stringType, n as enumType, r as objectType, t as arrayType } from "../_libs/zod.mjs";
 import { a as Settings, c as MessageCircle, d as Lock, f as Heart, g as ArrowLeft, h as Clock, i as Sun, l as MapPin, m as CloudRain, n as Wind, o as Send, p as Cloud, r as TriangleAlert, s as Phone, t as X, u as LogOut } from "../_libs/lucide-react.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DnqQiunK.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-CfjqmNAw.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function useServerFn(serverFn) {
@@ -584,6 +584,13 @@ function ChatWindow({ onLeave }) {
 				kind: "resource",
 				resourceId: result.resourceId
 			});
+			if (result.callLink) next.push({
+				id: `c-${Date.now()}`,
+				role: "assistant",
+				kind: "call_prompt",
+				callLink: result.callLink,
+				resourceName: result.callResourceName || "Monarch Services"
+			});
 			setMessages((m) => [...m, ...next]);
 		} catch {
 			setMessages((m) => [...m, {
@@ -657,6 +664,30 @@ function ChatWindow({ onLeave }) {
 									})
 								}, m.id);
 							}
+							if (m.kind === "call_prompt") return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.div, {
+								initial: {
+									opacity: 0,
+									y: 8
+								},
+								animate: {
+									opacity: 1,
+									y: 0
+								},
+								className: "flex w-full justify-start",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "flex flex-col gap-2 max-w-[85%]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+										href: m.callLink,
+										id: `call-btn-${m.id}`,
+										className: "inline-flex items-center justify-center gap-2 rounded-2xl bg-destructive px-5 py-3.5 text-sm font-semibold text-destructive-foreground shadow-lg hover:bg-destructive/90 transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Phone, { className: "h-4 w-4 shrink-0 animate-pulse" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+											"Call ",
+											m.resourceName,
+											" Now"
+										] })]
+									})
+								})
+							}, m.id);
 							return null;
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AnimatePresence, { children: isTyping && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {

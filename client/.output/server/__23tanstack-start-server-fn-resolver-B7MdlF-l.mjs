@@ -1,7 +1,7 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/__23tanstack-start-server-fn-resolver-HIakL9pf.js
+//#region node_modules/.nitro/vite/services/ssr/assets/__23tanstack-start-server-fn-resolver-B7MdlF-l.js
 var manifest = { "a321fe2194a921581fef2414e566f7a5282f648f08f25d41814b7f1c063e265f": {
 	functionName: "sendChatMessage_createServerFn_handler",
-	importer: () => import("./_ssr/sendChatMessage-bfqQGSb4.mjs")
+	importer: () => import("./_ssr/sendChatMessage-DqXgy23E.mjs")
 } };
 async function getServerFnById(id, access) {
 	const serverFnInfo = manifest[id];

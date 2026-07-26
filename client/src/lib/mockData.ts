@@ -49,6 +49,7 @@ export const resources: Resource[] = [
 export type ChatMessage =
   | { id: string; role: "assistant" | "user"; kind: "text"; content: string }
   | { id: string; role: "assistant"; kind: "resource"; resourceId: string }
+  | { id: string; role: "assistant"; kind: "call_prompt"; callLink: string; resourceName: string }
   | {
       id: string;
       role: "assistant";

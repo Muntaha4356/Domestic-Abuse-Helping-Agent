@@ -1,11 +1,11 @@
 {
-  "compatibility_date": "2026-07-26",
+  "compatibility_date": "2026-07-27",
   "main": "index.mjs",
   "assets": {
     "binding": "ASSETS",
     "directory": "..\\public"
   },
-  "name": "tanstack-start-ts",
+  "name": "muntaha4356-domestic-abuse-helping-agent-client",
   "compatibility_flags": [
     "nodejs_compat"
   ],

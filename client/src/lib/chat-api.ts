@@ -11,4 +11,6 @@ export type SendChatInput = {
 export type SendChatOutput = {
   reply: string;
   resourceId?: string;
+  callLink?: string;
+  callResourceName?: string;
 };
